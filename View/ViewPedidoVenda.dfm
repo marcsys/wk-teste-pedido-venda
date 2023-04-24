@@ -121,7 +121,6 @@ object FormPedidoVenda: TFormPedidoVenda
       Padding.Bottom = 12
       ParentBackground = False
       TabOrder = 2
-      ExplicitTop = 625
       object FlowPanelNumPedido: TFlowPanel
         AlignWithMargins = True
         Left = 15
@@ -315,7 +314,7 @@ object FormPedidoVenda: TFormPedidoVenda
         Width = 682
         Height = 70
         Align = alClient
-        Alignment = taRightJustify
+        Alignment = taLeftJustify
         BevelOuter = bvNone
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
@@ -325,7 +324,7 @@ object FormPedidoVenda: TFormPedidoVenda
         Padding.Right = 3
         ParentFont = False
         TabOrder = 3
-        VerticalAlignment = taAlignBottom
+        VerticalAlignment = taAlignTop
         object LabelNomeCliente: TLabel
           Left = 0
           Top = 0
@@ -338,6 +337,7 @@ object FormPedidoVenda: TFormPedidoVenda
           Font.Name = 'Tahoma'
           Font.Style = []
           ParentFont = False
+          Layout = tlCenter
           WordWrap = True
           ExplicitWidth = 6
           ExplicitHeight = 23
