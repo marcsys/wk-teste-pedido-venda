@@ -19,5 +19,4 @@ begin
   Application.MainFormOnTaskbar := True;
   var controller := TControllerPedidoVenda.Create;
   Application.Run;
-
 end.

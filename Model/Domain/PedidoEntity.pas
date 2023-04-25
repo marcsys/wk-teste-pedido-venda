@@ -72,7 +72,6 @@ begin
     _numero := row.GetData('num_pedido');
     _dataEmissao := row.GetData('data_emissao');
     _valorTotal := row.GetData('valor_total');
-    _cliente := TCliente.Create;
     _cliente.fill(row);
   end;
 end;
@@ -118,15 +117,25 @@ function TPedido.getSelect: String;
 begin
   var
   buffer := TStringBuilder.Create;
-  buffer.Append('SELECT ''PEDIDO'' AS entity, ').Append('pedi.*, ')
-    .Append('clie.nome_cliente, ').Append('clie.cidade_cliente, ')
-    .Append('clie.uf_cliente ').Append('FROM ').Append('pedido pedi ')
+  buffer
+    .Append('SELECT ''PEDIDO'' AS entity, ')
+    .Append('pedi.*, ')
+    .Append('clie.nome_cliente, ')
+    .Append('clie.cidade_cliente, ')
+    .Append('clie.uf_cliente ')
+    .Append('FROM ')
+    .Append('pedido pedi ')
     .Append('INNER JOIN cliente clie ')
     .Append('ON clie.cod_cliente = pedi.cod_cliente ')
-    .Append('WHERE pedi.num_pedido = :id').Append(';')
-    .Append('SELECT ''ITEM_PEDIDO'' AS entity, ').Append('itpd.*, ')
-    .Append('prod.desc_produto, ').Append('prod.preco_venda ').Append('FROM ')
-    .Append('item_pedido itpd ').Append('INNER JOIN produto prod ')
+    .Append('WHERE pedi.num_pedido = :id')
+    .Append(';')
+    .Append('SELECT ''ITEM_PEDIDO'' AS entity, ')
+    .Append('itpd.*, ')
+    .Append('prod.desc_produto, ')
+    .Append('prod.preco_venda ')
+    .Append('FROM ')
+    .Append('item_pedido itpd ')
+    .Append('INNER JOIN produto prod ')
     .Append('ON prod.cod_produto = itpd.cod_produto ')
     .Append('WHERE itpd.num_pedido = :id');
   Result := buffer.ToString;

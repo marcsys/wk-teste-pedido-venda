@@ -655,6 +655,7 @@ object FormPedidoVenda: TFormPedidoVenda
     end
     object ActionSaveItem: TAction
       Caption = 'OK'
+      OnExecute = ActionSaveItemExecute
     end
     object ActionUndoPedido: TAction
       Caption = 'Desprezar Pedido'

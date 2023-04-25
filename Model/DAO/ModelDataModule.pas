@@ -8,7 +8,7 @@ uses
   FireDAC.Stan.Option, FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf,
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.VCLUI.Wait,
   FireDAC.Comp.Client, FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf,
-  FireDAC.DApt, FireDAC.Comp.DataSet, EntityImplementation,
+  FireDAC.DApt, FireDAC.Comp.DataSet, EntityImplementation, Dialogs,
   Generics.Collections, EntityFactory;
 
 type
@@ -20,8 +20,8 @@ type
     procedure DataModuleDestroy(Sender: TObject);
   private
     procedure fillParameters(params: TEntityFillParameters);
-    function ExecuteUpdate(command: String; parameters: TEntityFillParameters;
-      id: int64): Boolean;
+    function ExecuteUpdate(const command: String;
+      const parameters: TEntityFillParameters; const id: int64): Boolean;
   public
     function getEntityInstance(const id: int64; const entityClass: TClass)
       : TEntityCrud;
@@ -56,38 +56,47 @@ begin
     instance.getId);
 end;
 
-function TDataModulePedidoVenda.ExecuteUpdate(command: String;
-  parameters: TEntityFillParameters; id: int64): Boolean;
+function TDataModulePedidoVenda.ExecuteUpdate(const command: String;
+  const parameters: TEntityFillParameters; const id: int64): Boolean;
 begin
   Result := False;
-  with FDCommand1 do
-  begin
-    CommandText.Text := command;
-    fillParameters(parameters);
+  try
+    with FDCommand1 do
+    begin
+      CommandText.Text := command;
+      fillParameters(parameters);
 
-    if FindParam('id') <> nil then
-      ParamByName('id').AsLargeInt := id;
+      if FindParam('id') <> nil then
+        ParamByName('id').AsLargeInt := id;
 
-    Execute;
-    Result := RowsAffected > 0;
+      Execute;
+
+      if RowsAffected = 0 then
+        raise Exception.Create('A operação não surtiu o efeito esperado.');
+
+      Result := True;
+    end;
+  except
+    on E: Exception do
+    begin
+      ShowMessageFmt('Erro inesperado processando a operação:%s%s',
+        [Chr(13), E.Message]);
+      if FDConnection1.InTransaction then
+        FDConnection1.Rollback;
+    end;
   end;
 end;
 
 procedure TDataModulePedidoVenda.fillParameters(params: TEntityFillParameters);
-var
-  Param: TEntityFillParameter;
 begin
-  for Param in params do
-  begin
+  for var Param in params do
     FDCommand1.ParamByName(Param.Key).Value := Param.Value;
-  end;
 end;
 
 function TDataModulePedidoVenda.getEntityInstance(const id: int64;
   const entityClass: TClass): TEntityCrud;
 var
   i: Integer;
-  statement: String;
   definitions: TFDDatSTable;
   instance: TEntityCrud;
 begin
@@ -103,10 +112,8 @@ begin
       definitions := Define;
       try
         Fetch(definitions);
-        for i := 0 to definitions.Rows.Count - 1 do
-        begin
+        for i := 0 to Pred(definitions.Rows.Count) do
           instance.fill(definitions.Rows[i]);
-        end;
       finally
         definitions.Free;
       end;
@@ -115,18 +122,13 @@ begin
     CloseAll;
   end;
 
-  if instance.getId = 0 then
-    Exit;
-
-  Result := instance;
+  if instance.getId > 0 then
+    Result := instance;
 end;
 
 function TDataModulePedidoVenda.getLastId: Variant;
 begin
-  with FDConnection1 do
-  begin
-    Result := ExecSQLScalar('SELECT LAST_INSERT_ID()');
-  end;
+  Result := FDConnection1.ExecSQLScalar('SELECT LAST_INSERT_ID()');
 end;
 
 function TDataModulePedidoVenda.insertEntity(instance: TEntityCrud): Boolean;

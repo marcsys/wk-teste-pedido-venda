@@ -71,6 +71,7 @@ type
     procedure ActionDeleteItemExecute(Sender: TObject);
     procedure ActionEditItemExecute(Sender: TObject);
     procedure EditCodClienteChange(Sender: TObject);
+    procedure ActionSaveItemExecute(Sender: TObject);
   private
     regionalFormat: TFormatSettings;
     decimalRegEx: TRegEx;
@@ -127,6 +128,32 @@ begin
   DBGrid1.SetFocus;
 end;
 
+procedure TFormPedidoVenda.ActionSaveItemExecute(Sender: TObject);
+var
+  values: TArray<Variant>;
+begin
+  if Not savingItemReady(values) then
+    Exit;
+
+  with FDMemTableItensPedido do
+  begin
+    if _editingItem then
+      Edit
+    else
+    begin
+      Append;
+      FieldByName('codProduto').AsLargeInt := values[0];
+      FieldByName('dscProduto').AsString := LabelDescricaoProduto.Caption;
+    end;
+
+    FieldByName('quantidade').AsFloat := values[1];
+    FieldByName('vlrUnitario').AsCurrency := values[2];
+    Post;
+  end;
+
+  setEditingItem(False);
+end;
+
 procedure TFormPedidoVenda.adjustEnabling;
 var
   foo: TArray<Variant>;
@@ -145,7 +172,6 @@ begin
   EditCodProduto.ReadOnly := _editingItem = _inserting;
   EditQuantidade.ReadOnly := Not _inserting;
   EditVlrUnitario.ReadOnly := Not _inserting;
-  DBGrid1.ReadOnly := Not _inserting;
   ActionSaveItem.Enabled := savingItemReady(foo);
 end;
 
@@ -238,7 +264,7 @@ begin
   if commaPos = 1 then
   begin
     Result := '0' + Result;
-    commaPos := commaPos + 1;
+    Inc(commaPos);
   end;
 
   Result := Copy(Result, 1, commaPos) + digitsRegex.Replace

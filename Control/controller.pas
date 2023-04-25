@@ -20,10 +20,9 @@ type
     function importCliente(codCliente: Int64): Boolean;
     function importPedido(const numero: Int64): Boolean;
     function importProduto(const codProduto: Int64): Boolean;
+    function applyPedido: Boolean;
     procedure configureEvents;
     procedure fillMemTable;
-    procedure applyPedido;
-    procedure prepareEditItem;
     procedure fillClienteControls;
     procedure fillProdutoColumns(produto: TProduto);
     procedure fillProdutoControls(produto: TProduto);
@@ -31,7 +30,6 @@ type
     procedure ActionSavePedidoExecute(Sender: TObject);
     procedure ActionNewPedidoExecute(Sender: TObject);
     procedure ActionCancelPedidoExecute(Sender: TObject);
-    procedure ActionSaveItemExecute(Sender: TObject);
     procedure ActionUndoPedidoExecute(Sender: TObject);
     procedure EditCodProdutoExit(Sender: TObject);
     procedure FDMemTableItensPedidoAfterApplyUpdates(DataSet: TFDDataSet;
@@ -48,31 +46,6 @@ procedure TControllerPedidoVenda.ActionNewPedidoExecute(Sender: TObject);
 begin
   pedido := TPedido.Create;
   form.isInserting := importCliente(StrToInt64(form.EditCodCliente.Text));
-end;
-
-procedure TControllerPedidoVenda.ActionSaveItemExecute(Sender: TObject);
-var
-  values: TArray<Variant>;
-begin
-  form.savingItemReady(values);
-
-  with form.FDMemTableItensPedido do
-  begin
-    if form.isEditingItem then
-      Edit
-    else
-    begin
-      Insert;
-      FieldByName('codProduto').AsLargeInt := values[0];
-      FieldByName('dscProduto').AsString := form.LabelDescricaoProduto.Caption;
-    end;
-
-    FieldByName('quantidade').AsFloat := values[1];
-    FieldByName('vlrUnitario').AsCurrency := values[2];
-    Post;
-  end;
-
-  form.isEditingItem := False;
 end;
 
 procedure TControllerPedidoVenda.ActionSavePedidoExecute(Sender: TObject);
@@ -97,12 +70,11 @@ begin
     Close;
     ReadOnly := False;
     CachedUpdates := False;
-        Open;
-
+    Open;
 
     for var item in pedido.Items do
     begin
-      Insert;
+      Append;
       fillProdutoColumns(item.produto);
       FieldByName('numPedido').AsLargeInt := item.numPedido;
       FieldByName('vlrUnitario').AsCurrency := item.valorUnitario;
@@ -115,21 +87,32 @@ begin
   end;
 end;
 
-procedure TControllerPedidoVenda.applyPedido;
+function TControllerPedidoVenda.applyPedido: Boolean;
 begin
   pedido.Items := mountItensPedido;
   pedido.valorTotal := form.FDMemTableItensPedido.FieldByName
     ('totalPedido').Value;
 
-  if dataModule.insertEntity(pedido) then
+  with dataModule do
   begin
-    pedido.numero := dataModule.getLastId;
+    FDConnection1.StartTransaction;
+    Result := insertEntity(pedido);
 
-    for var item in pedido.Items do
+    if Result then
     begin
-      item.numPedido := pedido.numero;
-      dataModule.insertEntity(item);
+      pedido.numero := getLastId;
+
+      for var item in pedido.Items do
+      begin
+        item.numPedido := pedido.numero;
+        Result := insertEntity(item);
+        if Not Result then
+          break;
+      end;
     end;
+
+    if Result and FDConnection1.InTransaction then
+      FDConnection1.Commit;
   end;
 end;
 
@@ -142,23 +125,26 @@ end;
 
 procedure TControllerPedidoVenda.EditCodProdutoExit(Sender: TObject);
 begin
-  if (Not form.isInserting) or form.isEditingItem then
-    Exit;
-
-  if form.EditCodProduto.Text = '' then
+  with form.EditCodProduto do
   begin
-    form.cleanProdutoControls;
-    Exit;
-  end;
+    if ReadOnly then
+      Exit;
 
-  importProduto(StrToInt64(form.EditCodProduto.Text));
+    if Text = '' then
+    begin
+      form.cleanProdutoControls;
+      Exit;
+    end;
+
+    importProduto(StrToInt64(Text));
+  end;
 end;
 
 procedure TControllerPedidoVenda.FDMemTableItensPedidoAfterApplyUpdates
   (DataSet: TFDDataSet; AErrors: Integer);
 begin
-  applyPedido;
-  importPedido(pedido.numero);
+  if applyPedido then
+    importPedido(pedido.numero);
 end;
 
 procedure TControllerPedidoVenda.fillClienteControls;
@@ -167,8 +153,8 @@ begin
   begin
     EditCodCliente.Text := IntToStr(pedido.cliente.codigo);
     LabelNomeCliente.Caption := pedido.cliente.nome;
-    PanelDadosCliente.Caption := pedido.cliente.cidade + '/' +
-      pedido.cliente.uf;
+    PanelDadosCliente.Caption :=
+      Format('%s/%s', [pedido.cliente.cidade, pedido.cliente.uf]);
 
     if Trim(PanelDadosCliente.Caption) = '/' then
       PanelDadosCliente.Caption := '';
@@ -204,7 +190,6 @@ begin
     ActionCancelPedido.OnExecute := ActionCancelPedidoExecute;
     ActionNewPedido.OnExecute := ActionNewPedidoExecute;
     ActionSavePedido.OnExecute := ActionSavePedidoExecute;
-    ActionSaveItem.OnExecute := ActionSaveItemExecute;
     ActionUndoPedido.OnExecute := ActionUndoPedidoExecute;
     EditCodProduto.OnExit := EditCodProdutoExit;
   end;
@@ -240,33 +225,12 @@ begin
     while Not Eof do
     begin
       itemPedido := TItemPedido.Create;
-      itemPedido.produto := TProduto.Create;
       itemPedido.produto.codigo := FieldByName('codProduto').AsLargeInt;
       itemPedido.quantidade := FieldByName('quantidade').AsFloat;
       itemPedido.valorUnitario := FieldByName('vlrUnitario').AsCurrency;
-      Result := Result + [itemPedido];
+      System.Insert(itemPedido, Result, Length(Result));
       Next;
     end;
-  end;
-end;
-
-procedure TControllerPedidoVenda.prepareEditItem;
-begin
-  with form do
-  begin
-    EditCodProduto.Text := FDMemTableItensPedido.FieldByName
-      ('codProduto').AsString;
-    EditQuantidade.Text :=
-      FloatToStr(FDMemTableItensPedido.FieldByName('quantidade').AsFloat,
-      regionalFormat);
-    EditVlrUnitario.Text :=
-      CurrToStr(FDMemTableItensPedido.FieldByName('vlrUnitario').AsCurrency,
-      regionalFormat);
-    LabelDescricaoProduto.Caption := FDMemTableItensPedido.FieldByName
-      ('dscProduto').AsString;
-    EditQuantidade.SetFocus;
-    form.isEditingItem := True;
-    adjustEnabling;
   end;
 end;
 
@@ -308,7 +272,7 @@ begin
     Exit;
   end;
 
-  if form.FDMemTableItensPedido.State in [dsInsert, dsEdit] then
+  if form.FDMemTableItensPedido.State in dsEditModes then
     fillProdutoColumns(produto)
   else
     fillProdutoControls(produto);
@@ -325,11 +289,17 @@ begin
     (MessageDlg('O pedido será excluído definitivamente. Confirma?',
     TMsgDlgType.mtConfirmation, [mbOK, mbCancel], 0, mbCancel) = mrCancel) then
     Exit;
-
-  form.isLoadingPedido := Not dataModule.deleteEntity(pedido);
-
-  if Not form.isLoadingPedido then
-    pedido.Free;
+  with dataModule do
+  begin
+    FDConnection1.StartTransaction;
+    if dataModule.deleteEntity(pedido) then
+    begin
+      if FDConnection1.InTransaction then
+        FDConnection1.Commit;
+      form.isLoadingPedido := False;
+      pedido.Free;
+    end;
+  end;
 end;
 
 procedure TControllerPedidoVenda.ActionLoadPedidoExecute(Sender: TObject);
@@ -342,8 +312,8 @@ begin
   strNumero := '';
 
   repeat
-    if Not InputQuery('Pedido', msgValidacao + 'Informe número do pedido',
-      strNumero) then
+    if Not InputQuery('Pedido', Format('%sInforme número do pedido',
+      [msgValidacao]), strNumero) then
       Exit;
     msgValidacao := 'Número inválido.' + chr(13);
   until (TryStrToInt64(Trim(strNumero), intNumero));

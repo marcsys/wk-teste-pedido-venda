@@ -60,7 +60,6 @@ begin
   _numPedido := row.GetData('num_pedido');
   _quantidade := row.GetData('quantidade');
   _valorUnitario := row.GetData('valor_unitario');
-  _produto := TProduto.Create;
   _produto.fill(row);
 end;
 
@@ -75,7 +74,7 @@ end;
 
 function TItemPedido.getId: int64;
 begin
-  Result := _sequence
+  Result := _sequence;
 end;
 
 function TItemPedido.getIdName: String;

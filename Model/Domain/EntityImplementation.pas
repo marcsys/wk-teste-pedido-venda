@@ -30,7 +30,7 @@ type
 
 implementation
 
-uses ModelDataModule, Rtti;
+uses ModelDataModule, Rtti, SysUtils;
 
 { TEntityCrud }
 
@@ -38,26 +38,25 @@ procedure TEntityCrud.AssignTo(Dest: TPersistent);
 var
   ctx: TRttiContext;
   tpe: TRttiType;
-  vle: TValue;
 begin
-  if Dest.ClassType <> Self.ClassType then
+  if (Dest = nil) or (Dest.ClassType <> Self.ClassType) then
     inherited;
 
   ctx := TRttiContext.Create;
   tpe := ctx.GetType(Self.ClassType);
+
   for var propty in tpe.GetProperties do
   begin
     if propty.IsWritable And propty.IsReadable then
-    begin
-      vle := propty.GetValue(Self);
-      propty.SetValue(Dest, vle);
-    end;
+      propty.SetValue(Dest, propty.GetValue(Self));
   end;
+
+  ctx.Free;
 end;
 
 constructor TEntityCrud.Create;
 begin
-//
+// Apenas para garantir o construtor virtual necessário para o Assign, AssignTo
 end;
 
 function TEntityCrud.getConsiderAtInsert: TEntityFillParameters;
@@ -72,55 +71,85 @@ end;
 
 function TEntityCrud.getDelete: String;
 begin
-  Result := 'DELETE FROM ' + getTableName + ' WHERE ' + getIdName + ' = :id';
+  Result := Format('DELETE FROM %s WHERE %s = :id', [getTableName, getIdName]);
 end;
 
 function TEntityCrud.getInsert: String;
 var
   fieldName: String;
   delimitador: String;
+  buffer: TStringBuilder;
 begin
-  Result := 'INSERT INTO ' + getTableName;
   delimitador := '(';
+  buffer := TStringBuilder.Create;
+
+  buffer
+    .Append('INSERT INTO ')
+    .Append(getTableName);
+
 
   for fieldName in getConsiderAtInsert.keys do
   begin
-    Result := Result + delimitador + fieldName;
+    buffer
+      .Append(delimitador)
+      .Append(fieldName);
+
     delimitador := ',';
   end;
 
-  Result := Result + ') VALUES (';
   delimitador := '';
+  buffer.Append(') VALUES (');
 
   for fieldName IN getConsiderAtInsert.keys do
   begin
-    Result := Result + delimitador + ':' + fieldName;
+    buffer
+      .Append(delimitador)
+      .Append(':')
+      .Append(fieldName);
+
     delimitador := ',';
   end;
 
-  Result := Result + ')';
+  buffer.Append(')');
+  Result := buffer.ToString;
 end;
 
 function TEntityCrud.getSelect: String;
 begin
-  Result := 'SELECT * FROM ' + getTableName + ' WHERE ' + getIdName + ' = :id';
+  Result := Format('SELECT * FROM %s WHERE %s = :id', [getTableName, getIdName]);
 end;
 
 function TEntityCrud.getUpdate: String;
 var
   fieldName: String;
   delimitador: String;
+  buffer: TStringBuilder;
 begin
-  Result := 'UPDATE ' + getTableName + ' SET ';
   delimitador := '';
+  buffer := TStringBuilder.Create;
+
+  buffer
+    .Append('UPDATE ')
+    .Append(getTableName)
+    .Append(' SET ');
 
   for fieldName IN getConsiderAtUpdate.keys do
   begin
-    Result := Result + delimitador + fieldName + ' = :' + fieldName;
+    buffer
+      .Append(delimitador)
+      .Append(fieldName)
+      .Append(' = :')
+      .Append(fieldName);
+
     delimitador := ','
   end;
 
-  Result := Result + ' WHERE ' + getIdName + ' = :id';
+  buffer
+    .Append(' WHERE ')
+    .Append(getIdName)
+    .Append(' = :id');
+
+  Result := buffer.ToString;
 end;
 
 end.
