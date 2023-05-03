@@ -20,6 +20,8 @@ USE `wk_teste_pedido_venda` ;
 -- -----------------------------------------------------
 -- Table `wk_teste_pedido_venda`.`cliente`
 -- -----------------------------------------------------
+DROP TABLE IF EXISTS `cliente`;
+
 CREATE TABLE IF NOT EXISTS `wk_teste_pedido_venda`.`cliente` (
   `cod_cliente` BIGINT(14) NOT NULL COMMENT 'Código do cliente, compatível com CPF/CNPJ',
   `nome_cliente` VARCHAR(100) NOT NULL COMMENT 'Nome do cliente',
@@ -33,6 +35,8 @@ COMMENT = 'Tabela de clientes';
 -- -----------------------------------------------------
 -- Table `wk_teste_pedido_venda`.`produto`
 -- -----------------------------------------------------
+DROP TABLE IF EXISTS `produto`;
+
 CREATE TABLE IF NOT EXISTS `wk_teste_pedido_venda`.`produto` (
   `cod_produto` BIGINT(13) NOT NULL COMMENT 'Código do produto, compatível com código de barras.',
   `desc_produto` VARCHAR(250) NULL COMMENT 'Descrição do produto',
@@ -45,6 +49,8 @@ COMMENT = 'Tabela de produtos';
 -- -----------------------------------------------------
 -- Table `wk_teste_pedido_venda`.`pedido`
 -- -----------------------------------------------------
+DROP TABLE IF EXISTS `pedido`;
+
 CREATE TABLE IF NOT EXISTS `wk_teste_pedido_venda`.`pedido` (
   `num_pedido` INT NOT NULL AUTO_INCREMENT COMMENT 'Número do pedido',
   `cod_cliente` BIGINT(14) NOT NULL COMMENT 'Número do cliente que fez o pedido',
@@ -65,6 +71,8 @@ CREATE INDEX `pedido_cliente_fk_idx` ON `wk_teste_pedido_venda`.`pedido` (`cod_c
 -- -----------------------------------------------------
 -- Table `wk_teste_pedido_venda`.`item_pedido`
 -- -----------------------------------------------------
+DROP TABLE IF EXISTS `item_pedido`;
+
 CREATE TABLE IF NOT EXISTS `wk_teste_pedido_venda`.`item_pedido` (
   `seq_item_pedido` INT NOT NULL AUTO_INCREMENT COMMENT 'Sequencial de item de pedido',
   `num_pedido` INT NOT NULL COMMENT 'Número do pedido vinculado',
@@ -76,7 +84,7 @@ CREATE TABLE IF NOT EXISTS `wk_teste_pedido_venda`.`item_pedido` (
   CONSTRAINT `item_pedido_fk`
     FOREIGN KEY (`num_pedido`)
     REFERENCES `wk_teste_pedido_venda`.`pedido` (`num_pedido`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `item_produto_fk`
     FOREIGN KEY (`cod_produto`)
